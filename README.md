@@ -276,7 +276,7 @@ flowchart TD
 
     APIGW -->|Rutas Sincronas| UIAM
     APIGW -->|Rutas Sincronas| UTRANS
-    APIGW -->|Ruta Sincrona (202 Accepted)| UPAY
+    APIGW -->|Ruta Sincrona - 202 Accepted| UPAY
     UPAY -->|Encola Mandato| SQS_DLQ
     SQS_DLQ -->|Desencola Batch| SAGA_WORKER
     
