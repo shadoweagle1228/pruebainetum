@@ -664,3 +664,4 @@ El diseño de este sistema se fundamenta explícitamente en los siguientes patro
 - **Circuit Breaker:** Protege al sistema de fallas en los Entes de Facturación y del Core Bancario, abriendo el circuito si detecta caídas constantes para evitar bloqueos en nuestra nube.
 - **Fail-Fast (Timeouts):** Aplicado en `U-TRANS` para la consulta interbancaria síncrona. Si el proveedor tarda más del SLA (2s), se corta inmediatamente la conexión.
 - **Dead Letter Queue (DLQ) & Backoff Exponencial:** Para manejar reintentos de forma segura en caso de caídas transitorias sin sobrecargar a los sistemas externos.
+- **API Gateway Pattern (Backend for Frontend):** Punto único de entrada para todas las peticiones móviles. Centraliza la validación del JWT, emisión de Correlation IDs, y ruteo dinámico (síncrono hacia Lambdas, o asíncrono directo hacia colas SQS sin cómputo intermediario).

@@ -6,7 +6,7 @@
 **Para** obtener un JWT de sesión, registrar mi llave pública (Enclave Seguro) para futuras firmas y registrar mi token de notificaciones (FCM/APNs), cumpliendo PCI-DSS.
 
 **Criterios de Aceptación (AC):**
-- **AC1:** El sistema valida credenciales invocando el API REST legado a través de la Capa Anticorrupción (ACL). La autenticación hacia el legado se realiza inyectando una API KEY almacenada de forma segura (AWS Secrets Manager) (Cumplimiento EGS 1.4, **NFR-02**).
+- **AC1:** Todas las peticiones inician en el **API Gateway** (punto único de entrada). El sistema valida credenciales invocando el API REST legado a través de la Capa Anticorrupción (ACL). La autenticación hacia el legado usa una API KEY (AWS Secrets Manager) (Cumplimiento EGS 1.4, **NFR-02**).
 - **AC2:** El backend genera un JWT (sin datos sensibles ni PII) y almacena la llave pública del dispositivo generada por el Enclave Seguro (**NFR-02**).
 - **AC3:** El backend recibe y almacena de forma segura el Push Token del dispositivo asociándolo al usuario autenticado.
 - **AC4:** Las credenciales en tránsito se transmiten estrictamente por TLS 1.2+ y los PINs/Passwords nunca se registran en logs (**NFR-02**).
@@ -18,9 +18,9 @@
 
 **Criterios de Aceptación (AC):**
 - **AC1:** Consulta síncrona a la entidad interbancaria. El procesamiento **interno** de AWS debe resolverse en **<200 ms** (**NFR-01**).
-- **AC2:** Resiliencia: Si la entidad externa supera el *timeout* máximo configurado (ej. 2s), el circuito corta la llamada y rechaza la transferencia inmediatamente para evitar contención de infraestructura (**NFR-04**).
+- **AC2:** Resiliencia: Si la entidad externa supera el *timeout* máximo (ej. 2s), el **API Gateway / Circuit Breaker** corta la llamada y rechaza la transferencia inmediatamente para evitar contención de infraestructura (**NFR-04**).
 - **AC3:** Transacción pasa a `PENDING_APPROVAL` persistida en Amazon DynamoDB. Los datos bancarios sensibles deben estar cifrados (KMS) (**NFR-02**).
-- **AC4:** Registro de auditoría inmutable (usuario, fecha/hora, IP) del inicio de la transferencia (**NFR-03**).
+- **AC4:** Registro de auditoría inmutable (usuario, fecha/hora, IP, Correlation ID del API Gateway) del inicio de la transferencia (**NFR-03**).
 
 ## ST-03: Aprobación/Rechazo Multi-firma de Transferencia (Firma de Enclave)
 **Como** usuario corporativo aprobador,
@@ -39,7 +39,7 @@
 **Para** que el sistema gestione la comunicación inestable con el proveedor externo y, si falla definitivamente, me devuelva los fondos.
 
 **Criterios de Aceptación (AC):**
-- **AC1:** La solicitud se encola y devuelve un ID asíncrono al cliente inmediatamente (latencia mínima en UI).
+- **AC1:** La solicitud entra por el **API Gateway**, el cual la encola directamente (Integración Nativa) en SQS y devuelve un ID asíncrono al cliente inmediatamente (HTTP 202).
 - **AC2:** El orquestador ejecuta el **Paso 1**: Débito en el Core Bancario. Si falla (ej. fondos insuficientes), la Saga se marca como `FAILED` y se emite evento para notificar al usuario.
 - **AC3:** Si el Paso 1 es exitoso, el orquestador ejecuta el **Paso 2**: Pago al proveedor externo gestionando retries con Backoff Exponencial y Circuit Breaker (**NFR-04**).
 - **AC4:** Si el Paso 2 es exitoso, el estado final es `COMPLETED`. Si el Paso 2 sufre un fallo definitivo (agotados los reintentos), se ejecuta una transacción de **compensación (reverso de fondos)** en el Core Bancario y se marca como `FAILED`.
