@@ -819,3 +819,7 @@ A medida que el proyecto entra en la fase de construcción, los diseños técnic
 - **Bolt B-04 (U-PAY - Inicio Pagos de Servicios):**
   - [Modelo de Dominio](aidlc-docs/mob-construction/B-04/domain_model.md)
   - [Diseño Lógico y API Contract](aidlc-docs/mob-construction/B-04/logical_design.md)
+
+- **Bolt B-05 (U-PAY - Saga Orchestrator):**
+  - [Modelo de Dominio](aidlc-docs/mob-construction/B-05/domain_model.md)
+  - [Diseño Lógico y Arquitectura](aidlc-docs/mob-construction/B-05/logical_design.md)
