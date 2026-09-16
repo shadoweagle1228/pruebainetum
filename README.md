@@ -224,7 +224,7 @@ Durante la sesión de Mob Elaboration se tomaron **9 decisiones arquitectónicas
 
 | Herramienta | Uso |
 |-------------|-----|
-| **AWS CDK (TypeScript)** | Definición de toda la infraestructura (Lambdas, DynamoDB, SQS, API GW, Step Functions). Prohibido ClickOps. |
+| **AWS CDK (Python)** | Definición de toda la infraestructura (Lambdas, DynamoDB, SQS, API GW, Step Functions). Prohibido ClickOps. |
 
 ---
 
