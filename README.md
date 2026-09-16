@@ -11,7 +11,7 @@
 | Sección | Documento | Estado |
 |---------|-----------|--------|
 | [Intención y Alcance](#1-intención-y-alcance) | [intent-primary.md](aidlc-docs/intents/intent-primary.md) | ✅ Completo |
-| [Enterprise Guardrails (EGS)](#2-enterprise-guardrail-system-egs) | [egs_definition.md](aidlc-docs/standards/egs_definition.md) | ✅ Completo |
+| [Enterprise Guardrails (EGS)](#2-enterprise-guardrail-system-egs) | [egs_definition.md](aidlc-docs/egs_definition.md) | ✅ Completo |
 | [Historias de Usuario](#3-historias-de-usuario) | [user_stories.md](aidlc-docs/mob-elaboration/user_stories.md) | ✅ Completo |
 | [División de Unidades (Bounded Contexts)](#4-bounded-contexts--unidades-lógicas) | [units.md](aidlc-docs/mob-elaboration/units.md) | ✅ Completo |
 | [Riesgos y NFRs](#5-riesgos-y-requerimientos-no-funcionales) | [risks_and_nfrs.md](aidlc-docs/mob-elaboration/risks_and_nfrs.md) | ✅ Completo |
@@ -60,7 +60,7 @@ Diseñar e implementar una arquitectura **Cloud-Native, Serverless y Event-Drive
 
 ## 2. Enterprise Guardrail System (EGS)
 
-**Documento:** [`egs_definition.md`](aidlc-docs/standards/egs_definition.md)
+**Documento:** [`egs_definition.md`](aidlc-docs/egs_definition.md)
 
 Durante la sesión de elaboración, establecimos que **ningún artifact de construcción puede ignorar estos guardrails**. Constituyen el contrato técnico no negociable del proyecto.
 
@@ -812,3 +812,80 @@ El diseño de este sistema se fundamenta explícitamente en los siguientes patro
 - **Fail-Fast (Timeouts):** Aplicado en `U-TRANS` para la consulta interbancaria síncrona. Si el proveedor tarda más del SLA (2s), se corta inmediatamente la conexión.
 - **Dead Letter Queue (DLQ) & Backoff Exponencial:** Para manejar reintentos de forma segura en caso de caídas transitorias sin sobrecargar a los sistemas externos.
 - **API Gateway Pattern (Backend for Frontend):** Punto único de entrada para todas las peticiones móviles. Centraliza la validación del JWT, emisión de Correlation IDs, y ruteo dinámico (síncrono hacia Lambdas, o asíncrono directo hacia colas SQS sin cómputo intermediario).
+
+### 10.1 Modelo de Dominio: U-IAM (Bolt B-01)
+Este modelo abstrae la lógica de autenticación y el registro del Enclave Seguro, aplicando el principio de **Clean Architecture (Puertos y Adaptadores)**. Aisla la complejidad del Core Legado.
+
+`mermaid
+classDiagram
+    %% Casos de Uso (Puertos de Entrada)
+    class AuthenticationUseCase {
+        <<interface>>
+        +login(username, password, deviceData) JWT
+    }
+    class DeviceManagementUseCase {
+        <<interface>>
+        +revokeDevice(deviceId) void
+    }
+
+    %% Entidades de Dominio
+    class User {
+        +String userId
+        +String role
+        +String status
+    }
+    class Device {
+        +String deviceId
+        +String userId
+        +String pushToken
+        +String publicKeyPEM
+        +DeviceStatus status
+    }
+    class DeviceStatus {
+        <<enumeration>>
+        ACTIVE
+        REVOKED
+    }
+
+    %% Value Objects
+    class JWT {
+        +String token
+        +long expiresAt
+    }
+    class LegacyCredentials {
+        +String username
+        +String password
+    }
+
+    %% Puertos de Salida (Infraestructura)
+    class LegacyAuthPort {
+        <<interface>>
+        +authenticate(LegacyCredentials) User
+    }
+    class DeviceRepositoryPort {
+        <<interface>>
+        +save(Device) void
+    }
+    class TokenGeneratorPort {
+        <<interface>>
+        +generateToken(User, Device) JWT
+    }
+
+    AuthenticationUseCase --> User : maneja
+    AuthenticationUseCase --> Device : registra
+    AuthenticationUseCase --> LegacyAuthPort : usa
+    AuthenticationUseCase --> TokenGeneratorPort : usa
+    AuthenticationUseCase --> DeviceRepositoryPort : usa
+    Device --> DeviceStatus : tiene
+`
+
+## 12. Artefactos de Construcción (Mob Construction)
+A medida que el proyecto entra en la fase de construcción, los diseños técnicos detallados y contratos de API de cada Bolt se van documentando en sus respectivas carpetas:
+
+- **Bolt B-01 (U-IAM):**
+  - [Modelo de Dominio (domain_model.md)](aidlc-docs/mob-construction/B-01/domain_model.md)
+  - [Diseño Lógico y API Contract (logical_design.md)](aidlc-docs/mob-construction/B-01/logical_design.md)
+
+- **Bolt B-02 (U-TRANS - Inicio Transferencias):**
+  - [Modelo de Dominio](aidlc-docs/mob-construction/B-02/domain_model.md)
+  - [Diseño Lógico y API Contract](aidlc-docs/mob-construction/B-02/logical_design.md)
