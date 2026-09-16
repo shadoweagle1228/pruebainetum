@@ -246,7 +246,7 @@ flowchart TD
     subgraph AWS_DOMAIN["AWS — Capa de Dominio (Application Layer)"]
         UIAM["🔐 U-IAM\nLambda: Auth & Enclave Registry"]
         UTRANS["💸 U-TRANS\nLambda: Transfer State Machine\n+ Cryptographic Engine"]
-        UPAY["🧾 U-PAY\nStep Functions (Standard)\nSaga: Debit → Pay → Compensate"]
+        UPAY["🧾 U-PAY\nLambda: Saga Worker / Initiator"]
         UNOTIF["🔔 U-NOTIF\nLambda: Notification Dispatcher"]
     end
 
@@ -254,6 +254,7 @@ flowchart TD
         DYNAMO["Amazon DynamoDB\n(Single Table · KMS · TTL)"]
         EVENTBRIDGE["Amazon EventBridge\n(Domain Events Bus)"]
         SQS_DLQ["Amazon SQS + DLQ\n(Reintentos y Dead Letters)"]
+        SF["⚙️ AWS Step Functions\n(Saga Orchestrator Engine)"]
         SNS["Amazon SNS\n(Push → APNs / FCM)"]
     end
 
