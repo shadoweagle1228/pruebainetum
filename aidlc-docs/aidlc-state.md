@@ -10,9 +10,9 @@
 | Mode | greenfield |
 | Started | 2026-09-16 |
 | Current Ritual | Mob Elaboration |
-| Current Position | Mob Elaboration (Phases Complete, Ritual Open) |
+| Current Position | Mob Elaboration Complete |
 | Depth Profile | THOROUGH |
-| Next Step | Esperar instrucciones del líder antes de cerrar el ritual |
+| Next Step | Ejecutar `/aidlc-construct` para iniciar la construcción del Bolt B-01 (U-IAM). |
 | Intent Branch | |
 | Parent Branch | |
 | Last Updated | 20260916-15:25 |
