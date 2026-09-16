@@ -534,9 +534,9 @@ flowchart TB
     style OBSERVABILITY fill:#eceff1,stroke:#607d8b
 ```
 
-### 9.6 Diagrama de Red y Topología VPC (AWS Account)
+### 9.6 Diagrama de Red y Conectividad (Pure Serverless)
 
-Dado que es una aplicación bancaria que interactúa con un **Core Bancario** y sistemas legados (típicamente On-Premise), la infraestructura Serverless debe conectarse a una **Amazon VPC**. Este diagrama muestra el aislamiento de red, subredes públicas/privadas y la conectividad híbrida.
+El sistema utiliza un enfoque **100% Serverless nativo (sin VPC gestionada por el cliente)** para maximizar el rendimiento, reducir costos (sin NAT Gateways ni VPC Endpoints) y simplificar el mantenimiento.
 
 ```mermaid
 flowchart TB
@@ -544,73 +544,53 @@ flowchart TB
         CLIENT["📱 App Móvil"]
         FCM["Push (FCM / APNs)"]
         BILL["Facturadores Externos"]
-    end
-
-    subgraph AWS_ACCOUNT["☁️ Cuenta AWS (Región)"]
-        direction TB
         
-        WAF["🛡️ AWS WAF"]
-        APIGW["🚪 API Gateway (Regional)"]
-        COG["🔑 Amazon Cognito"]
-        
-        subgraph VPC["🔒 Amazon VPC (Virtual Private Cloud)"]
-            direction TB
-            
-            subgraph PUBLIC["Public Subnets (AZ-A, AZ-B)"]
-                NAT["🌐 NAT Gateway"]
-                IGW["🚪 Internet Gateway"]
-            end
-            
-            subgraph PRIVATE_APP["Private Subnets - Compute (AZ-A, AZ-B)"]
-                LAMBDAS["⚡ AWS Lambdas\n(U-IAM, U-TRANS, U-NOTIF)"]
-                SF["⚙️ Step Functions"]
-            end
-            
-            subgraph PRIVATE_ENDPOINTS["Private Subnets - VPC Endpoints"]
-                VPCE_DDB["VPC Endpoint (Gateway)\nDynamoDB"]
-                VPCE_SM["VPC Endpoint (Interface)\nSecrets Manager"]
-                VPCE_SQS["VPC Endpoint (Interface)\nSQS / SNS / EventBridge"]
-            end
-            
-            VGW["🔌 Virtual Private Gateway (VGW)"]
+        subgraph ONPREM["🏢 Datacenter Bancario (Expuesto)"]
+            CORE["🏦 Core Bancario (API Pública + WAF)"]
+            LEG["🗄️ Sistema Legado (API Pública + WAF)"]
         end
     end
 
-    subgraph ONPREM["🏢 Datacenter Bancario (On-Premise)"]
-        CORE["🏦 Core Bancario"]
-        LEG["🗄️ Sistema Legado"]
+    subgraph AWS_ACCOUNT["☁️ Cuenta AWS (Red Gestionada por AWS)"]
+        direction TB
+        WAF["🛡️ AWS WAF"]
+        APIGW["🚪 API Gateway"]
+        
+        LAMBDAS["⚡ AWS Lambdas\n(U-IAM, U-TRANS, U-NOTIF)"]
+        SF["⚙️ Step Functions"]
+        
+        SERVICES["AWS Managed Services\n(DynamoDB, SQS, KMS, SM)"]
     end
 
-    %% Conectividad de Entrada
+    %% Flujos de entrada
     CLIENT --> WAF
     WAF --> APIGW
-    APIGW --> COG
-    APIGW ==>|Invoca| LAMBDAS
-    APIGW ==>|Integra| VPCE_SQS
+    APIGW ==> LAMBDAS
     
-    %% Conectividad de Red de Cómputo (Salida a Internet)
-    LAMBDAS -.->|Tráfico a FCM/APNs| NAT
-    NAT --> IGW
-    IGW --> FCM
-    IGW --> BILL
-
-    %% Conectividad Segura a Servicios AWS (Sin salir a internet)
-    LAMBDAS ==> VPCE_DDB
-    LAMBDAS ==> VPCE_SM
-    LAMBDAS ==> VPCE_SQS
-
-    %% Conectividad Híbrida (Direct Connect / VPN)
-    LAMBDAS ==> VGW
-    VGW == "AWS Direct Connect / VPN IPSec" === ONPREM
+    %% Tráfico Interno AWS (Backbone de AWS)
+    LAMBDAS ==> SERVICES
+    
+    %% Tráfico de salida (Por internet)
+    LAMBDAS -.->|API Key| CORE
+    LAMBDAS -.->|API Key| LEG
+    LAMBDAS -.-> FCM
+    LAMBDAS -.-> BILL
+    SF -.-> BILL
+    SF -.-> CORE
 
     style INTERNET fill:#f5f5f5,stroke:#9e9e9e,stroke-width:2px
     style AWS_ACCOUNT fill:#fff,stroke:#ff9900,stroke-width:2px
-    style VPC fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
-    style PUBLIC fill:#e1f5fe,stroke:#03a9f4,stroke-dasharray: 5 5
-    style PRIVATE_APP fill:#fff3e0,stroke:#ff9800
-    style PRIVATE_ENDPOINTS fill:#f3e5f5,stroke:#9c27b0
-    style ONPREM fill:#eceff1,stroke:#607d8b,stroke-width:2px
+    style ONPREM fill:#eceff1,stroke:#607d8b,stroke-dasharray: 5 5
 ```
+
+> [!WARNING]
+> **Salvedad de Arquitectura (Contingencia de Red Privada)**
+> Esta topología asume que el **Core Bancario y el Sistema Legado están expuestos a internet** (protegidos por API Keys y WAF perimetral propio). 
+> **Si políticas de seguridad dictaminan que el Core debe ser estrictamente privado**, la arquitectura DEBERÁ cambiar obligatoriamente a una topología de red aislada. Los cambios requeridos serían:
+> 1. Desplegar una **Amazon VPC** con túnel VPN IPSec o AWS Direct Connect hacia el Datacenter.
+> 2. Mover las Lambdas a **Subredes Privadas** dentro de esa VPC.
+> 3. Provisionar **NAT Gateways** en Subredes Públicas para que `U-NOTIF` y `U-PAY` puedan salir a internet a contactar a FCM/APNs y a los Facturadores.
+> 4. Provisionar **VPC Endpoints** (Interface y Gateway) para no perder conexión con DynamoDB, Secrets Manager y SQS.
 
 ---
 
