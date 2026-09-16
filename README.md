@@ -534,6 +534,84 @@ flowchart TB
     style OBSERVABILITY fill:#eceff1,stroke:#607d8b
 ```
 
+### 9.6 Diagrama de Red y Topología VPC (AWS Account)
+
+Dado que es una aplicación bancaria que interactúa con un **Core Bancario** y sistemas legados (típicamente On-Premise), la infraestructura Serverless debe conectarse a una **Amazon VPC**. Este diagrama muestra el aislamiento de red, subredes públicas/privadas y la conectividad híbrida.
+
+```mermaid
+flowchart TB
+    subgraph INTERNET["🌐 Internet Público"]
+        CLIENT["📱 App Móvil"]
+        FCM["Push (FCM / APNs)"]
+        BILL["Facturadores Externos"]
+    end
+
+    subgraph AWS_ACCOUNT["☁️ Cuenta AWS (Región)"]
+        direction TB
+        
+        WAF["🛡️ AWS WAF"]
+        APIGW["🚪 API Gateway (Regional)"]
+        COG["🔑 Amazon Cognito"]
+        
+        subgraph VPC["🔒 Amazon VPC (Virtual Private Cloud)"]
+            direction TB
+            
+            subgraph PUBLIC["Public Subnets (AZ-A, AZ-B)"]
+                NAT["🌐 NAT Gateway"]
+                IGW["🚪 Internet Gateway"]
+            end
+            
+            subgraph PRIVATE_APP["Private Subnets - Compute (AZ-A, AZ-B)"]
+                LAMBDAS["⚡ AWS Lambdas\n(U-IAM, U-TRANS, U-NOTIF)"]
+                SF["⚙️ Step Functions"]
+            end
+            
+            subgraph PRIVATE_ENDPOINTS["Private Subnets - VPC Endpoints"]
+                VPCE_DDB["VPC Endpoint (Gateway)\nDynamoDB"]
+                VPCE_SM["VPC Endpoint (Interface)\nSecrets Manager"]
+                VPCE_SQS["VPC Endpoint (Interface)\nSQS / SNS / EventBridge"]
+            end
+            
+            VGW["🔌 Virtual Private Gateway (VGW)"]
+        end
+    end
+
+    subgraph ONPREM["🏢 Datacenter Bancario (On-Premise)"]
+        CORE["🏦 Core Bancario"]
+        LEG["🗄️ Sistema Legado"]
+    end
+
+    %% Conectividad de Entrada
+    CLIENT --> WAF
+    WAF --> APIGW
+    APIGW --> COG
+    APIGW ==>|Invoca| LAMBDAS
+    APIGW ==>|Integra| VPCE_SQS
+    
+    %% Conectividad de Red de Cómputo (Salida a Internet)
+    LAMBDAS -.->|Tráfico a FCM/APNs| NAT
+    NAT --> IGW
+    IGW --> FCM
+    IGW --> BILL
+
+    %% Conectividad Segura a Servicios AWS (Sin salir a internet)
+    LAMBDAS ==> VPCE_DDB
+    LAMBDAS ==> VPCE_SM
+    LAMBDAS ==> VPCE_SQS
+
+    %% Conectividad Híbrida (Direct Connect / VPN)
+    LAMBDAS ==> VGW
+    VGW == "AWS Direct Connect / VPN IPSec" === ONPREM
+
+    style INTERNET fill:#f5f5f5,stroke:#9e9e9e,stroke-width:2px
+    style AWS_ACCOUNT fill:#fff,stroke:#ff9900,stroke-width:2px
+    style VPC fill:#e8f5e9,stroke:#4caf50,stroke-width:2px
+    style PUBLIC fill:#e1f5fe,stroke:#03a9f4,stroke-dasharray: 5 5
+    style PRIVATE_APP fill:#fff3e0,stroke:#ff9800
+    style PRIVATE_ENDPOINTS fill:#f3e5f5,stroke:#9c27b0
+    style ONPREM fill:#eceff1,stroke:#607d8b,stroke-width:2px
+```
+
 ---
 
 ## 10. Diagrama de Clases del Dominio
