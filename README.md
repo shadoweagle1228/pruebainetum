@@ -131,6 +131,7 @@ Se identificaron **5 NFRs** y **4 riesgos críticos** que moldean directamente l
 | **R-02** | Saga inconsistente deja fondos bloqueados tras fallo de nube. | Crítico | Step Functions **Standard Mode** (persiste estado). |
 | **R-03** | Dispositivo perdido/robado, llave de Enclave sigue activa. | Alto | Endpoint de revocación explícita en U-IAM. |
 | **R-04** | Fuga accidental de PII/JWT en logs de CloudWatch. | Crítico | Logger Middleware con scrubbing automático de campos sensibles. |
+| **R-05** | Latencia por Cold Start de Lambdas rompe el SLA <200ms. | Medio | **Provisioned Concurrency** en AWS Lambda para flujos síncronos (`U-TRANS`). |
 
 ---
 
