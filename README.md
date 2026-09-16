@@ -780,45 +780,11 @@ classDiagram
 
 ---
 
-## 11. Auditoría de Sesión
-
-**Documento:** [`audit-log.md`](aidlc-docs/audit/audit-log.md)
-
-La sesión de Mob Elaboration fue conducida el **2026-09-16** con la participación de:
-
-- **Edwin Alejandro Ramirez** (earo1228@gmail.com) — Líder de sesión.
-
-Durante la sesión se registraron **13+ entradas** en el log de auditoría que cubren el ciclo completo desde el pre-flight hasta la validación del plan. Todas las decisiones arquitectónicas (D1–D9) fueron explícitamente aprobadas por el Líder antes de ser incorporadas a los artefactos.
-
-### Resumen de la Sesión
-
-| Fase | Actividad Principal | Resultado |
-|------|--------------------|-----------| 
-| Pre-flight | MCP Gate, Participantes | ✅ Completado |
-| Fase 1 | Clarificación del intent (9 rondas de clarificación) | ✅ Completado |
-| Fase 2 | 5 Historias de Usuario con ACs PCI-DSS | ✅ Aprobado |
-| Fase 3 | 4 Bounded Contexts (U-IAM, U-TRANS, U-PAY, U-NOTIF) | ✅ Aprobado |
-| Fase 4 | 5 NFRs + 4 Riesgos Críticos con mitigaciones | ✅ Aprobado |
-| Fase 5 | 5 Bolts (66h estimado) + grafo acíclico de dependencias | ✅ Aprobado |
-| Validación | Plan Validation Gate completo | ✅ **PASS** |
-
-## 12. Principios y Patrones de Diseño
-
-El diseño de este sistema se fundamenta explícitamente en los siguientes patrones y arquitecturas:
-
-- **Clean Architecture & Hexagonal Architecture (Ports and Adapters):** El código del dominio (reglas de negocio, firmas, transacciones) está completamente aislado de la infraestructura (AWS, DynamoDB, APIs externas). Esto permite probar el negocio de forma pura y cambiar proveedores sin reescribir reglas.
-- **Saga Pattern:** Usado en `U-PAY` para garantizar la consistencia en el pago de facturas a través de múltiples servicios distribuidos. Si un paso falla permanentemente, se ejecuta una transacción compensatoria (reverso).
-- **Circuit Breaker:** Protege al sistema de fallas en los Entes de Facturación y del Core Bancario, abriendo el circuito si detecta caídas constantes para evitar bloqueos en nuestra nube.
-- **Fail-Fast (Timeouts):** Aplicado en `U-TRANS` para la consulta interbancaria síncrona. Si el proveedor tarda más del SLA (2s), se corta inmediatamente la conexión.
-- **Dead Letter Queue (DLQ) & Backoff Exponencial:** Para manejar reintentos de forma segura en caso de caídas transitorias sin sobrecargar a los sistemas externos.
-- **API Gateway Pattern (Backend for Frontend):** Punto único de entrada para todas las peticiones móviles. Centraliza la validación del JWT, emisión de Correlation IDs, y ruteo dinámico (síncrono hacia Lambdas, o asíncrono directo hacia colas SQS sin cómputo intermediario).
-
-### 10.1 Modelo de Dominio: U-IAM (Bolt B-01)
+## 10.1 Modelo de Dominio: U-IAM (Bolt B-01)
 Este modelo abstrae la lógica de autenticación y el registro del Enclave Seguro, aplicando el principio de **Clean Architecture (Puertos y Adaptadores)**. Aisla la complejidad del Core Legado.
 
 `mermaid
 classDiagram
-    %% Casos de Uso (Puertos de Entrada)
     class AuthenticationUseCase {
         <<interface>>
         +login(username, password, deviceData) JWT
@@ -828,7 +794,6 @@ classDiagram
         +revokeDevice(deviceId) void
     }
 
-    %% Entidades de Dominio
     class User {
         +String userId
         +String role
@@ -846,8 +811,6 @@ classDiagram
         ACTIVE
         REVOKED
     }
-
-    %% Value Objects
     class JWT {
         +String token
         +long expiresAt
@@ -856,8 +819,6 @@ classDiagram
         +String username
         +String password
     }
-
-    %% Puertos de Salida (Infraestructura)
     class LegacyAuthPort {
         <<interface>>
         +authenticate(LegacyCredentials) User
@@ -879,7 +840,64 @@ classDiagram
     Device --> DeviceStatus : tiene
 `
 
-## 12. Artefactos de Construcción (Mob Construction)
+## 10.2 Modelo de Dominio: U-TRANS (Bolt B-02)
+Orquestador central para la máquina de estados de transferencias y motor multi-firma. Valida cuentas destino e inicia operaciones en estado PENDING_APPROVAL.
+
+`mermaid
+classDiagram
+    class InitiateTransferUseCase {
+        <<interface>>
+        +initiate(initiatorUserId, amount, destination) Transaction
+    }
+    class Transaction {
+        +String transactionId
+        +String initiatorUserId
+        +Decimal amount
+        +String destinationAccount
+        +String destinationBankId
+        +TransactionStatus status
+    }
+    class TransactionStatus {
+        <<enumeration>>
+        PENDING_APPROVAL
+        APPROVED
+        CANCELLED
+    }
+    class InterbankValidatorPort {
+        <<interface>>
+        +validateAccount(bankId, account) boolean
+    }
+    class TransactionRepositoryPort {
+        <<interface>>
+        +save(Transaction) void
+    }
+    InitiateTransferUseCase --> Transaction : crea
+    InitiateTransferUseCase --> InterbankValidatorPort : usa
+    InitiateTransferUseCase --> TransactionRepositoryPort : usa
+`
+
+## 11. Auditoría de Sesión
+
+**Documento:** [udit-log.md](aidlc-docs/audit/audit-log.md)
+
+La sesión de Mob Elaboration fue conducida el **2026-09-16** con la participación de:
+
+- **Edwin Alejandro Ramirez** (earo1228@gmail.com) — Líder de sesión.
+
+Durante la sesión se registraron **13+ entradas** en el log de auditoría que cubren el ciclo completo desde el pre-flight hasta la validación del plan. Todas las decisiones arquitectónicas (D1—D9) fueron explícitamente aprobadas por el Líder antes de ser incorporadas a los artefactos.
+
+## 12. Principios y Patrones de Diseño
+
+El diseño de este sistema se fundamenta explícitamente en los siguientes patrones y arquitecturas:
+
+- **Clean Architecture & Hexagonal Architecture (Ports and Adapters):** El código del dominio (reglas de negocio, firmas, transacciones) está completamente aislado de la infraestructura (AWS, DynamoDB, APIs externas). Esto permite probar el negocio de forma pura y cambiar proveedores sin reescribir reglas.
+- **Saga Pattern:** Usado en U-PAY para garantizar la consistencia en el pago de facturas a través de múltiples servicios distribuidos. Si un paso falla permanentemente, se ejecuta una transacción compensatoria (reverso).
+- **Circuit Breaker:** Protege al sistema de fallas en los Entes de Facturación y del Core Bancario, abriendo el circuito si detecta caídas constantes para evitar bloqueos en nuestra nube.
+- **Fail-Fast (Timeouts):** Aplicado en U-TRANS para la consulta interbancaria síncrona. Si el proveedor tarda más del SLA (2s), se corta inmediatamente la conexión.
+- **Dead Letter Queue (DLQ) & Backoff Exponencial:** Para manejar reintentos de forma segura en caso de caídas transitorias sin sobrecargar a los sistemas externos.
+- **API Gateway Pattern (Backend for Frontend):** Punto único de entrada para todas las peticiones móviles. Centraliza la validación del JWT, emisión de Correlation IDs, y ruteo dinámico (síncrono hacia Lambdas, o asíncrono directo hacia colas SQS sin cómputo intermediario).
+
+## 13. Artefactos de Construcción (Mob Construction)
 A medida que el proyecto entra en la fase de construcción, los diseños técnicos detallados y contratos de API de cada Bolt se van documentando en sus respectivas carpetas:
 
 - **Bolt B-01 (U-IAM):**
