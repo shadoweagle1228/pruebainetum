@@ -655,6 +655,12 @@ Durante la sesión se registraron **13+ entradas** en el log de auditoría que c
 | Fase 5 | 5 Bolts (66h estimado) + grafo acíclico de dependencias | ✅ Aprobado |
 | Validación | Plan Validation Gate completo | ✅ **PASS** |
 
----
+## 12. Principios y Patrones de Diseño
 
-*Documentación generada bajo la metodología AI-DLC (AI Development Lifecycle). Para continuar con la construcción, ejecutar `/aidlc-construct` y seleccionar el primer bolt: `B-01 — Core Auth & Enclave Registry`.*
+El diseño de este sistema se fundamenta explícitamente en los siguientes patrones y arquitecturas:
+
+- **Clean Architecture & Hexagonal Architecture (Ports and Adapters):** El código del dominio (reglas de negocio, firmas, transacciones) está completamente aislado de la infraestructura (AWS, DynamoDB, APIs externas). Esto permite probar el negocio de forma pura y cambiar proveedores sin reescribir reglas.
+- **Saga Pattern:** Usado en `U-PAY` para garantizar la consistencia en el pago de facturas a través de múltiples servicios distribuidos. Si un paso falla permanentemente, se ejecuta una transacción compensatoria (reverso).
+- **Circuit Breaker:** Protege al sistema de fallas en los Entes de Facturación y del Core Bancario, abriendo el circuito si detecta caídas constantes para evitar bloqueos en nuestra nube.
+- **Fail-Fast (Timeouts):** Aplicado en `U-TRANS` para la consulta interbancaria síncrona. Si el proveedor tarda más del SLA (2s), se corta inmediatamente la conexión.
+- **Dead Letter Queue (DLQ) & Backoff Exponencial:** Para manejar reintentos de forma segura en caso de caídas transitorias sin sobrecargar a los sistemas externos.

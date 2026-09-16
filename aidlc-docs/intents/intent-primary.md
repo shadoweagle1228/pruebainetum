@@ -28,6 +28,7 @@ Reingeniería de la arquitectura técnica y backend de una aplicación móvil de
 - **AWS Well-Architected Framework:** Estricto alineamiento a sus 6 pilares.
 - **Clean Architecture:** Separación total de reglas de negocio e infraestructura (Hexagonal).
 - **Persistencia (NoSQL):** Uso exclusivo de Amazon DynamoDB para el almacenamiento de estado transaccional buscando latencia ultra baja.
+- **Infraestructura como Código (IaC):** Obligatorio el uso de **AWS CDK (Python)** para el despliegue de toda la infraestructura y servicios cloud.
 - **Parametrización Dinámica (AWS SSM):** Todos los sistemas externos (Core Bancario, Entidades Interbancarias, Legado, Facturadores) deben ser 100% parametrizables. Las URLs y configuraciones irán en **AWS Parameter Store**, y las credenciales/tokens técnicos obligatoriamente en **AWS Secrets Manager**.
 - **Integraciones y Resiliencia:** 
   - Entes de facturación asíncronos: Patrones de Dead Letter Queues (DLQ) y Circuit Breakers.

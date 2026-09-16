@@ -24,5 +24,5 @@
 - **4.3 Correlation IDs:** Toda petición entrante al API Gateway debe generar o propagar un ID de correlación único que fluya a través de todos los microservicios y logs.
 
 ## 5. Infraestructura Cloud-Native (AWS)
-- **5.1 Serverless-First:** Priorizar servicios sin servidor (Lambda, DynamoDB, Fargate, SQS, SNS, API Gateway) para optimizar costos y escalar a cero.
-- **5.2 Infraestructura como Código (IaC):** Toda la infraestructura debe provisionarse mediante código (CDK, Terraform, o SAM). Prohibido configuración manual (ClickOps).
+- **5.1 Serverless-First:** Priorizar servicios sin servidor (Lambda, DynamoDB, Fargate, SQS, SNS, API Gateway) para optimizar costos y escalar a cero. Para mitigar el problema de *cold start* en operaciones críticas (SLA <200ms), se permite el uso de **Provisioned Concurrency** en Lambdas clave.
+- **5.2 Infraestructura como Código (IaC):** Prohibida la configuración manual (ClickOps). El 100% de la infraestructura de AWS (API Gateway, Lambda, DynamoDB, Step Functions, SQS, SNS, IAM roles) DEBE definirse como código usando **AWS CDK con Python**.
