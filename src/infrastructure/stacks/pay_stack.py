@@ -5,6 +5,7 @@ from aws_cdk import (
     aws_sqs as sqs,
     aws_dynamodb as dynamodb,
     aws_lambda_event_sources as eventsources,
+    aws_apigateway as apigw,
 )
 from constructs import Construct
 
@@ -51,6 +52,16 @@ class PayStack(Stack):
         
         # Attach SQS to Saga Worker
         saga_worker.add_event_source(eventsources.SqsEventSource(payment_queue, batch_size=5))
+
+
+        # API Gateway to trigger the Initiator Lambda
+        api = apigw.LambdaRestApi(
+            self, "PaymentApi",
+            handler=initiate_function,
+            proxy=False
+        )
+        payments_resource = api.root.add_resource("payments")
+        payments_resource.add_method("POST")
 
         # Permissions
         core_table.grant_read_write_data(initiate_function)

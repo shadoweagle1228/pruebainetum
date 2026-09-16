@@ -187,7 +187,7 @@ Durante la sesión de Mob Elaboration se tomaron **9 decisiones arquitectónicas
 | Servicio | Uso |
 |----------|-----|
 | **AWS Lambda** | Motor de ejecución para todos los Bounded Contexts. Runtime: **Node.js 20.x** o **Python 3.12** (por definir en construcción). |
-| **AWS Step Functions (Standard Mode)** | Orquestador del Patrón Saga para U-PAY. Garantiza persistencia de estado hasta 1 año. |
+| **AWS Lambda (Worker Asíncrono)** | Orquestador del Patrón Saga para U-PAY consumiendo mensajes de SQS. Garantiza persistencia de estado hasta 1 año. |
 
 ### Capa de Persistencia (Ports OUT — Data)
 
@@ -240,7 +240,7 @@ flowchart TD
 
     subgraph AWS_EDGE["AWS — Capa de Entrada (Edge)"]
         APIGW["Amazon API Gateway\n(REST · JWT Auth · Correlation ID · Timeout)"]
-        SQS_IN["Amazon SQS\n(Cola de Entrada — Pagos)"]
+        
     end
 
     subgraph AWS_DOMAIN["AWS — Capa de Dominio (Application Layer)"]
@@ -254,7 +254,7 @@ flowchart TD
         DYNAMO["Amazon DynamoDB\n(Single Table · KMS · TTL)"]
         EVENTBRIDGE["Amazon EventBridge\n(Domain Events Bus)"]
         SQS_DLQ["Amazon SQS + DLQ\n(Reintentos y Dead Letters)"]
-        SF["⚙️ AWS Step Functions\n(Saga Orchestrator Engine)"]
+        SAGA_WORKER["⚙️ AWS Lambda\n(Saga Worker Engine)"]
         SNS["Amazon SNS\n(Push → APNs / FCM)"]
     end
 
@@ -276,8 +276,10 @@ flowchart TD
 
     APIGW -->|Rutas Sincronas| UIAM
     APIGW -->|Rutas Sincronas| UTRANS
-    APIGW -->|Ruta Asincrona Nativa| SQS_IN
-    SQS_IN --> UPAY
+    APIGW -->|Ruta Sincrona (202 Accepted)| UPAY
+    UPAY -->|Encola Mandato| SQS_DLQ
+    SQS_DLQ -->|Desencola Batch| SAGA_WORKER
+    
 
     UIAM --> LEGADO
     UIAM --> COGNITO
@@ -367,8 +369,9 @@ sequenceDiagram
 sequenceDiagram
     actor Usuario as 👤 Usuario
     participant APIGW as API Gateway
+    participant INIT as Lambda (Initiator)
     participant SQS as SQS (Cola de Pagos)
-    participant SF as Step Functions (Saga)
+    participant WRK as Lambda (Saga Worker)
     participant CORE as Core Bancario
     participant BILLER as Ente de Facturación
     participant EB as EventBridge
@@ -466,7 +469,8 @@ flowchart TB
         subgraph COMPUTE["Capa de Cómputo (Serverless)"]
             L_IAM["⚡ Lambda: U-IAM"]
             L_TRANS["⚡ Lambda: U-TRANS\n(Provisioned Concurrency)"]
-            SF_PAY["⚙️ Step Functions: U-PAY"]
+            L_PAY_INIT["⚡ Lambda: U-PAY Initiator"]
+            L_PAY_WRK["⚡ Lambda: U-PAY Saga Worker"]
             L_NOTIF["⚡ Lambda: U-NOTIF"]
         end
 
@@ -491,12 +495,13 @@ flowchart TB
         %% Conexiones Edge -> Compute
         API == Rutas Sincronas ==> L_IAM
         API == Rutas Sincronas ==> L_TRANS
-        API == Ruta Asincrona Nativa ==> SQS
+        API == Rutas Sincronas ==> L_PAY_INIT
         
         %% Conexiones Compute -> Messaging
-        SQS ==> SF_PAY
+        L_PAY_INIT ==> SQS
+        SQS ==> L_PAY_WRK
         L_TRANS -. Emite Eventos .-> EB
-        SF_PAY -. Emite Eventos .-> EB
+        L_PAY_WRK -. Emite Eventos .-> EB
         EB ==>|Regla de Enrutamiento| L_NOTIF
         L_NOTIF ==> SNS
 
@@ -505,7 +510,8 @@ flowchart TB
         L_TRANS ==>|Lee/Escribe| DDB
         L_IAM -. Lee Credenciales .-> SSM
         L_TRANS -. Lee URLs/Creds .-> SSM
-        SF_PAY -. Lee URLs/Creds .-> SSM
+        L_PAY_WRK -. Lee URLs/Creds .-> SSM
+        L_PAY_INIT -. Lee URLs/Creds .-> SSM
 
         %% Trazabilidad
         COMPUTE -. Métricas y Trazas .-> OBSERVABILITY
@@ -523,8 +529,8 @@ flowchart TB
     L_IAM ==> LEG
     L_TRANS ==> INT
     L_TRANS ==> CORE
-    SF_PAY ==> CORE
-    SF_PAY ==> BILL
+    L_PAY_WRK ==> CORE
+    L_PAY_WRK ==> BILL
     SNS ==> PUSH
 
     style AWS fill:#f9f9f9,stroke:#ff9900,stroke-width:2px
@@ -557,8 +563,8 @@ flowchart TB
         WAF["🛡️ AWS WAF"]
         APIGW["🚪 API Gateway"]
         
-        LAMBDAS["⚡ AWS Lambdas\n(U-IAM, U-TRANS, U-NOTIF)"]
-        SF["⚙️ Step Functions"]
+        LAMBDAS["⚡ AWS Lambdas\n(U-IAM, U-TRANS, U-NOTIF, U-PAY Initiator, U-PAY Worker)"]
+        
         
         SERVICES["AWS Managed Services\n(DynamoDB, SQS, KMS, SM)"]
     end
