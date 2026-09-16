@@ -72,3 +72,17 @@
 - For Brownfield sessions, the "Compatibility Impact" field traces decisions back to the compatibility impact map.
 - For Construction-phase architecture decisions, use this log AND create formal ADRs in mob-construction/[bolt]/logical_design.md.
 - This log provides the traceability the AI-DLC methodology requires — from Intent to decision to artifact.
+
+## Decision Registry
+
+| ID | Tema | Decisión | Alternativa Rechazada |
+|---|---|---|---|
+| **D1** | **Mecanismo Soft-Token** | Firma asimétrica mediante Enclave Seguro del dispositivo. El backend valida llave pública. | TOTP (código de 6 dígitos) |
+| **D2** | **Gestión de Push Tokens** | El backend en AWS almacena y asocia los tokens de FCM/APNs. | Delegar administración al sistema Legado |
+| **D3** | **Regla Multi-firma** | Aborto inmediato (`CANCELLED`) ante el primer rechazo de cualquier aprobador. | Mantener pendiente hasta acumular respuestas |
+| **D4** | **Patrón de Pagos (Saga)** | Opción B (Asíncrona pura). Step Functions orquesta el débito interno y luego el pago. Reverso/Compensación en caso de fallo externo. | Opción A (Débito síncrono previo) |
+| **D5** | **Latencia Síncrona** | El SLA <200ms aplica solo a la capa interna AWS. Fallo rápido (Timeout Circuit Breaker) en 2s para la entidad externa. | SLA End-to-End estricto (rechazado por alta inestabilidad externa) |
+| **D6** | **Integración Legada** | API REST protegida mediante API KEY inyectada desde AWS Secrets Manager. | Basic Auth o IAM puro no soportado |
+| **D7** | **Persistencia de Estado** | Amazon DynamoDB (Single Table Design) por sus requerimientos de ultra baja latencia. | Amazon Aurora Serverless |
+| **D8** | **Core Bancario** | Se añade un Actor externo (Sistema de Cuentas) para ejecución de los débitos y créditos (Saga compensación). | Ignorar el manejo contable de fondos |
+| **D9** | **Parametrización EGS** | Toda URL en Parameter Store. Toda credencial en Secrets Manager. PCI-DSS obliga a Zero Trust y no PII en logs. | ClickOps o variables de entorno en plano |
