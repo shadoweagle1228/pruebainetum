@@ -811,3 +811,7 @@ A medida que el proyecto entra en la fase de construcción, los diseños técnic
 - **Bolt B-02 (U-TRANS - Inicio Transferencias):**
   - [Modelo de Dominio](aidlc-docs/mob-construction/B-02/domain_model.md)
   - [Diseño Lógico y API Contract](aidlc-docs/mob-construction/B-02/logical_design.md)
+
+- **Bolt B-04 (U-PAY - Inicio Pagos de Servicios):**
+  - [Modelo de Dominio](aidlc-docs/mob-construction/B-04/domain_model.md)
+  - [Diseño Lógico y API Contract](aidlc-docs/mob-construction/B-04/logical_design.md)

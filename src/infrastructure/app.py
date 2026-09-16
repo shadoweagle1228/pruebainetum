@@ -4,6 +4,7 @@ import aws_cdk as cdk
 from stacks.iam_stack import IamStack
 
 from stacks.trans_stack import TransStack
+from stacks.pay_stack import PayStack
 
 app = cdk.App()
 
@@ -14,7 +15,8 @@ env = cdk.Environment(
 
 iam_stack = IamStack(app, "IamStack", env=env)
 
-# Pass the CoreTable reference to the U-TRANS stack
+# Pass the CoreTable reference to the other stacks
 TransStack(app, "TransStack", core_table=iam_stack.core_table, env=env)
+PayStack(app, "PayStack", core_table=iam_stack.core_table, env=env)
 
 app.synth()
