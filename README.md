@@ -273,9 +273,9 @@ flowchart TD
 
     APP -->|HTTPS/TLS 1.2+| APIGW
 
-    APIGW -->|Rutas Síncronas| UIAM
-    APIGW -->|Rutas Síncronas| UTRANS
-    APIGW -->|Ruta Asíncrona (Integración Nativa)| SQS_IN
+    APIGW -->|Rutas Sincronas| UIAM
+    APIGW -->|Rutas Sincronas| UTRANS
+    APIGW -->|Ruta Asincrona Nativa| SQS_IN
     SQS_IN --> UPAY
 
     UIAM --> LEGADO
