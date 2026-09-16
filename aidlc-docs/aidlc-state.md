@@ -10,9 +10,9 @@
 | Mode | greenfield |
 | Started | 2026-09-16 |
 | Current Ritual | Mob Construction |
-| Current Position | Bolt B-02 (U-TRANS) Complete |
+| Current Position | Bolt B-03 (U-TRANS) Complete |
 | Depth Profile | THOROUGH |
-| Next Step | Realizar retrospectiva o iniciar B-03 (Multi-sig) |
+| Next Step | Realizar retrospectiva o iniciar B-04 (U-PAY) |
 | Intent Branch | |
 | Parent Branch | |
 | Last Updated | 20260916-15:25 |

@@ -17,7 +17,7 @@ class IamStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         # 1. DynamoDB: Single Table Design for the whole system
-        core_table = dynamodb.Table(
+        self.core_table = dynamodb.Table(
             self, "CoreTable",
             partition_key=dynamodb.Attribute(name="PK", type=dynamodb.AttributeType.STRING),
             sort_key=dynamodb.Attribute(name="SK", type=dynamodb.AttributeType.STRING),
@@ -55,7 +55,7 @@ class IamStack(Stack):
             timeout=Duration.seconds(10),
             memory_size=512,
             environment={
-                "CORE_TABLE_NAME": core_table.table_name,
+                "CORE_TABLE_NAME": self.core_table.table_name,
                 "LEGACY_API_URL": "https://api.legacy-bank.internal", # Should come from context/config
                 "LEGACY_SECRET_ID": legacy_api_secret.secret_name,
                 "KMS_KEY_ID": jwt_key.key_id
@@ -72,7 +72,7 @@ class IamStack(Stack):
         )
 
         # Permissions
-        core_table.grant_read_write_data(auth_function)
+        self.core_table.grant_read_write_data(auth_function)
         legacy_api_secret.grant_read(auth_function)
         
         # Grant KMS sign permission (Action: kms:Sign)
