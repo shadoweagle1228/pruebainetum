@@ -445,6 +445,95 @@ sequenceDiagram
     end
 ```
 
+### 9.5 Diagrama de Infraestructura Cloud (Topología AWS Serverless)
+
+Este diagrama representa el despliegue físico de los servicios dentro de la nube de AWS, enfocándose en cómo interactúan los componentes Serverless gestionados, la capa de seguridad y las redes.
+
+```mermaid
+flowchart TB
+    subgraph AWS["☁️ Nube de AWS (Región Principal)"]
+        direction TB
+        
+        subgraph EDGE["Capa Perimetral (Edge & Auth)"]
+            WAF["🛡️ AWS WAF"]
+            COG["🔑 Amazon Cognito"]
+            API["🚪 Amazon API Gateway"]
+            WAF -.->|Protege| API
+            API -.->|Valida JWT| COG
+        end
+
+        subgraph COMPUTE["Capa de Cómputo (Serverless)"]
+            L_IAM["⚡ Lambda: U-IAM"]
+            L_TRANS["⚡ Lambda: U-TRANS\n(Provisioned Concurrency)"]
+            SF_PAY["⚙️ Step Functions: U-PAY"]
+            L_NOTIF["⚡ Lambda: U-NOTIF"]
+        end
+
+        subgraph MESSAGING["Capa de Mensajería y Eventos"]
+            SQS["📨 Amazon SQS"]
+            EB["🚌 Amazon EventBridge"]
+            SNS["📱 Amazon SNS"]
+        end
+
+        subgraph DATA["Capa de Persistencia y Seguridad"]
+            DDB["🗄️ Amazon DynamoDB"]
+            KMS["🔐 AWS KMS"]
+            SSM["⚙️ Parameter Store & Secrets Manager"]
+            DDB -.->|Cifrado| KMS
+        end
+        
+        subgraph OBSERVABILITY["Capa de Observabilidad (Transversal)"]
+            CW["📊 AWS CloudWatch (Logs/Alarms)"]
+            XRAY["🔎 AWS X-Ray (Traces)"]
+        end
+
+        %% Conexiones Edge -> Compute
+        API == Rutas Sincronas ==> L_IAM
+        API == Rutas Sincronas ==> L_TRANS
+        API == Ruta Asincrona Nativa ==> SQS
+        
+        %% Conexiones Compute -> Messaging
+        SQS ==> SF_PAY
+        L_TRANS -. Emite Eventos .-> EB
+        SF_PAY -. Emite Eventos .-> EB
+        EB ==>|Regla de Enrutamiento| L_NOTIF
+        L_NOTIF ==> SNS
+
+        %% Conexiones Compute -> Data
+        L_IAM ==>|Lee/Escribe| DDB
+        L_TRANS ==>|Lee/Escribe| DDB
+        L_IAM -. Lee Credenciales .-> SSM
+        L_TRANS -. Lee URLs/Creds .-> SSM
+        SF_PAY -. Lee URLs/Creds .-> SSM
+
+        %% Trazabilidad
+        COMPUTE -. Métricas y Trazas .-> OBSERVABILITY
+    end
+
+    subgraph TERCEROS["Sistemas Externos"]
+        CORE["Core Bancario"]
+        LEG["Legacy API"]
+        INT["Interbancario"]
+        BILL["Facturadores"]
+        PUSH["FCM / APNs"]
+    end
+
+    %% Conexiones al exterior
+    L_IAM ==> LEG
+    L_TRANS ==> INT
+    L_TRANS ==> CORE
+    SF_PAY ==> CORE
+    SF_PAY ==> BILL
+    SNS ==> PUSH
+
+    style AWS fill:#f9f9f9,stroke:#ff9900,stroke-width:2px
+    style EDGE fill:#e1f5fe,stroke:#03a9f4
+    style COMPUTE fill:#fff3e0,stroke:#ff9800
+    style MESSAGING fill:#f3e5f5,stroke:#9c27b0
+    style DATA fill:#e8f5e9,stroke:#4caf50
+    style OBSERVABILITY fill:#eceff1,stroke:#607d8b
+```
+
 ---
 
 ## 10. Diagrama de Clases del Dominio
