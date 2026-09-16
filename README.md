@@ -784,11 +784,13 @@ classDiagram
 
 **Documento:** [udit-log.md](aidlc-docs/audit/audit-log.md)
 
-La sesión de Mob Elaboration fue conducida el **2026-09-16** con la participación de:
+
+La sesión de **Mob Elaboration** fue conducida el **2026-09-16**, seguida de la sesión de **Mob Construction (Fast-Track)** el mismo día.
 
 - **Edwin Alejandro Ramirez** (earo1228@gmail.com) — Líder de sesión.
 
-Durante la sesión se registraron **13+ entradas** en el log de auditoría que cubren el ciclo completo desde el pre-flight hasta la validación del plan. Todas las decisiones arquitectónicas (D1—D9) fueron explícitamente aprobadas por el Líder antes de ser incorporadas a los artefactos.
+Durante la sesión se completó el ciclo de diseño y se construyeron los 5 Bolts (B-01 a B-05) aplicando Clean Architecture, Integración AWS CDK y pruebas unitarias aisladas.
+
 
 ## 12. Principios y Patrones de Diseño
 
@@ -823,3 +825,69 @@ A medida que el proyecto entra en la fase de construcción, los diseños técnic
 - **Bolt B-05 (U-PAY - Saga Orchestrator):**
   - [Modelo de Dominio](aidlc-docs/mob-construction/B-05/domain_model.md)
   - [Diseño Lógico y Arquitectura](aidlc-docs/mob-construction/B-05/logical_design.md)
+
+## 14. Guía de Despliegue en AWS (Paso a Paso)
+
+Esta sección detalla cómo desplegar la infraestructura generada (CDK) desde cero, configurando roles de conexión (OIDC) y los secretos necesarios.
+
+### Paso 1: Configurar AWS OIDC para GitHub Actions (CI/CD)
+Si deseas automatizar el despliegue desde GitHub, debes evitar quemar llaves estáticas (Access Keys) y usar OpenID Connect (OIDC).
+1. Entra a la consola de **AWS IAM -> Identity Providers**.
+2. Agrega un proveedor **OpenID Connect**:
+   - Provider URL: `https://token.actions.githubusercontent.com`
+   - Audience: `sts.amazonaws.com`
+3. Crea un Rol de IAM (`GitHubActionsDeployRole`) con políticas de Administrador (para crear recursos vía CDK) y asígnalo al proveedor OIDC restringiendo el repositorio a: `repo:shadoweagle1228/pruebainetum:*`.
+
+### Paso 2: Requisitos y Preparación Local
+Necesitas Node.js, Python 3.12+, AWS CLI y AWS CDK instalados.
+
+**Windows (PowerShell) / Linux (Bash):**
+```bash
+# Instalar AWS CDK globalmente
+npm install -g aws-cdk
+
+# Configurar credenciales AWS (Te pedirá Access Key, Secret y Región)
+aws configure
+
+# Instalar dependencias del CDK (Python)
+cd src/infrastructure
+pip install -r requirements.txt
+```
+
+### Paso 3: Inicializar Entorno CDK (Bootstrap)
+Prepara tu cuenta de AWS para usar CDK por primera vez.
+
+**Windows / Linux:**
+```bash
+# Reemplaza ACCOUNT_ID y REGION con tus datos (ej. us-east-1)
+cdk bootstrap aws://ACCOUNT_ID/REGION
+```
+
+### Paso 4: Configurar Secretos Parametrizables
+El sistema asume la existencia de un Secreto para invocar al Core Bancario (Legacy). Debes crearlo antes de desplegar.
+
+**Windows (PowerShell):**
+```powershell
+aws secretsmanager create-secret `
+  --name LegacyApiSecret `
+  --secret-string '{"API_KEY":"LA_LLAVE_REAL_DE_TU_CORE"}'
+```
+
+**Linux (Bash):**
+```bash
+aws secretsmanager create-secret   --name LegacyApiSecret   --secret-string '{"API_KEY":"LA_LLAVE_REAL_DE_TU_CORE"}'
+```
+
+*(Nota: En nuestro código CDK de desarrollo, el stack intenta crear un placeholder de este secreto para pruebas, pero en producción deberás inyectar el ARN o nombre del secreto preexistente).*
+
+### Paso 5: Despliegue de los Stacks
+Los stacks (IAM, Trans, Pay) provisionan API Gateway, SQS, Lambdas, KMS y DynamoDB. En nuestro código de desarrollo (`trans_stack.py`, `pay_stack.py`) los URLs de las APIs externas (`CORE_API_URL`, `BILLER_API_URL`) se configuraron como variables de entorno inyectadas a la Lambda.
+
+**Windows / Linux:**
+```bash
+# Sintetizar las plantillas de CloudFormation para validar
+cdk synth
+
+# Desplegar todo a la vez (aceptará automáticamente los permisos IAM)
+cdk deploy --all --require-approval never
+```
